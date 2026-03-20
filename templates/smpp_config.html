@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h2>SMPP Configuration</h2>
+      <p class="muted">Tune global SMPP system settings and delivery behavior.</p>
+    </div>
+    <button class="btn btn-primary" type="button">Save Configuration</button>
+  </div>
+
+  <div class="card form-card">
+    <h3>Core System Settings</h3>
+    <div class="form-grid">
+      <label class="form-field">
+        <span>System ID</span>
+        <input type="text" value="" />
+      </label>
+      <label class="form-field">
+        <span>System Type</span>
+        <input type="text" value="" />
+      </label>
+      <label class="form-field">
+        <span>Max Connections (Global)</span>
+        <input type="number" value="" />
+      </label>
+      <label class="form-field">
+        <span>Window Size</span>
+        <input type="number" value="10" />
+      </label>
+      <label class="form-field">
+        <span>Enquire Link Timer (s)</span>
+        <input type="number" value="30" />
+      </label>
+      <label class="form-field">
+        <span>Delivery Timeout (s)</span>
+        <input type="number" value="45" />
+      </label>
+    </div>
+    <div class="form-note muted">
+      Configuration updates will take effect after the SMPP gateway is restarted.
+    </div>
+  </div>
+{% endblock %}

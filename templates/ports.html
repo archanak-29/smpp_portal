@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- <div class="page-head">
+  <div>
+    <h2>Ports</h2>
+    <p class="muted">Monitor active listener ports and connection load.</p>
+  </div>
+  <button class="btn btn-primary" type="button">Allocate Port</button>
+</div> -->
+
+<div class="card table-card">
+  <div class="table-head">
+    <!-- <div>
+      <h3>Port Status</h3>
+      <p class="muted">Sample data shown until port telemetry is connected.</p>
+    </div> -->
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Port</th>
+          <th>Username</th>
+          <th>Password</th>
+          <th>Sms Configuration</th>
+        </tr>
+      </thead>
+      <tbody id="ports-table-body">
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

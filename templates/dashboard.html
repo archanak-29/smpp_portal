@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+    <div>
+        <h2>Welcome back, {{ username }}.</h2>
+        <p class="muted">Here is the live pulse of your SMPP infrastructure for today.</p>
+    </div>
+    <!-- <div class="hero-cta">
+      <div class="badge">Service Health</div>
+      <span class="pulse-dot"></span>
+      All systems nominal
+    </div> -->
+</div>
+
+<div class="stat-grid">
+    <div class="card stat-card">
+        <div class="stat-icon">U</div>
+        <div>
+            <div class="stat-label">Active Users</div>
+            <div class="stat-value">1,249998</div>
+        </div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-icon alt">M</div>
+        <div>
+            <div class="stat-label">Messages Sent Today</div>
+            <div class="stat-value">1.2M</div>
+        </div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-icon alt-2">D</div>
+        <div>
+            <div class="stat-label">Avg Delivery Time</div>
+            <div class="stat-value">2.4s</div>
+        </div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-icon alt-3">P</div>
+        <div>
+            <div class="stat-label">Active Ports</div>
+            <div class="stat-value">12</div>
+        </div>
+    </div>
+</div>
+
+<!-- <div class="card chart-card">
+    <div class="card-head">
+        <div>
+            <h3>System Overview</h3>
+            <p class="muted">Traffic volume and delivery latency across core lanes.</p>
+        </div>
+        <button class="btn btn-ghost" type="button">View Report</button>
+    </div>
+    <div class="chart-placeholder">
+        <div class="chart-grid"></div>
+        <div class="chart-line"></div>
+        <span>Chart placeholder</span>
+    </div>
+</div> -->
+{% endblock %}

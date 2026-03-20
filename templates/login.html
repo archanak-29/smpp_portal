@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="SMPP Control Login" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+    <title>SMPP Control Login</title>
+  </head>
+  <body class="auth-shell" data-page="login">
+    <div class="auth-wrap">
+      <section class="auth-card">
+        <div class="auth-header">
+          <div class="brand-mark">S</div>
+          <div>
+            <h2>Sign in</h2>
+            <p>Use your SMPP credentials to continue.</p>
+          </div>
+        </div>
+        <form id="login-form" class="form-stack">
+          <label class="form-field">
+            <span>Username</span>
+            <input id="login-username" type="text" placeholder="admin" required />
+          </label>
+          <label class="form-field">
+            <span>Password</span>
+            <input id="login-password" type="password" placeholder="Enter your password" required />
+          </label>
+          <div class="form-error" id="login-error"></div>
+          <button class="btn btn-primary" id="login-button" type="submit">Log in</button>
+        </form>
+        <p class="form-note">Need access? Contact your system administrator.</p>
+      </section>
+    </div>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
+</html>
