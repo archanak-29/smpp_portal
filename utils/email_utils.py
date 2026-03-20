@@ -23,9 +23,7 @@ class EmailUtils:
 
         logging.basicConfig(level=logging.INFO)
 
-    # -----------------------------
-    # SMTP connection
-    # -----------------------------
+    # get SMTP connection
     def _get_connection(self):
         server = smtplib.SMTP(self.smtp_server, self.smtp_port)
 
@@ -129,11 +127,3 @@ class EmailUtils:
             )
 
 
-from email_utils import EmailUtils
-
-email_util = EmailUtils(
-    smtp_server="smtp.gmail.com",
-    smtp_port=587,
-    username="your_email@gmail.com",
-    password="app_password"
-)

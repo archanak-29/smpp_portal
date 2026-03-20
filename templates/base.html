@@ -1,57 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="SMPP Service Control Center" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
-    <title>SMPP Control</title>
-  </head>
-  <body
-    class="app-shell"
-    data-page="{{ active_page }}"
-    data-session-id="{{ session_id or '' }}"
-    data-is-admin="{{ 'true' if is_admin else 'false' }}"
-  >
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">S</div>
-        <div class="brand-text">
-          <div class="brand-title">SMPP Control</div>
-          <div class="brand-subtitle">Messaging Ops</div>
-        </div>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SMPP Service Control Center" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <title>SMPP Control</title>
+</head>
+
+<body class="app-shell" data-page="{{ active_page }}" data-session-id="{{ session_id or '' }}"
+  data-is-admin="{{ 'true' if is_admin else 'false' }}">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div class="brand-text">
+        <div class="brand-title">SMPP Control</div>
+        <div class="brand-subtitle">Messaging Ops</div>
       </div>
-      <nav class="nav">
-        <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/dashboard">Dashboard</a>
-        <a class="nav-link {% if active_page == 'users' %}active{% endif %}" href="/users">Users</a>
-        <a class="nav-link {% if active_page == 'ports' %}active{% endif %}" href="/ports">Ports</a>
-        <a class="nav-link {% if active_page == 'smpp_config' %}active{% endif %}" href="/smpp-config">SMPP Config</a>
-      </nav>
-      <div class="sidebar-foot">
-        <div class="status-chip">
-          <span class="status-dot"></span>
-          System Online
-        </div>
+    </div>
+    <!-- <nav class="nav">
+      <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/dashboard">Dashboard</a>
+      <a class="nav-link {% if active_page == 'users' %}active{% endif %}" href="/users">Users</a>
+      <a class="nav-link {% if active_page == 'ports' %}active{% endif %}" href="/ports">Ports</a>
+      <a class="nav-link {% if active_page == 'smpp_config' %}active{% endif %}" href="/smpp-config">SMPP Config</a>
+    </nav> -->
+
+    <nav class="nav">
+      {% if is_admin %}
+      <!-- ✅ ADMIN MENU -->
+      <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/dashboard">Dashboard</a>
+      <a class="nav-link {% if active_page == 'users' %}active{% endif %}" href="/users">Users</a>
+      <a class="nav-link {% if active_page == 'ports' %}active{% endif %}" href="/ports">Ports</a>
+      <a class="nav-link {% if active_page == 'smpp_config' %}active{% endif %}" href="/smpp-config">SMPP Config</a>
+
+      {% else %}
+      <!-- ✅ NON-ADMIN MENU -->
+      <a class="nav-link {% if active_page == 'user_info' %}active{% endif %}" href="/userinfo">User Information</a>
+      <a class="nav-link {% if active_page == 'sms_usage' %}active{% endif %}" href="/smsusage">SMS Usage</a>
+
+      {% endif %}
+    </nav>
+
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">SMPP Service</div>
+        <h1 class="page-title">{{ page_title }}</h1>
       </div>
-    </aside>
-    <main class="main">
-      <header class="topbar">
-        <div>
-          <div class="eyebrow">SMPP Service</div>
-          <h1 class="page-title">{{ page_title }}</h1>
-        </div>
-        <div class="topbar-actions">
-          <div class="user-pill">{{ username }}</div>
-          <button class="btn btn-ghost" id="logout-btn" type="button">Logout</button>
-        </div>
-      </header>
-      <section class="page">
-        {% block content %}{% endblock %}
-      </section>
-    </main>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-  </body>
+      <div class="topbar-actions">
+        <div class="user-pill">{{ username }}</div>
+        <button class="btn btn-ghost" id="logout-btn" type="button">Logout</button>
+      </div>
+    </header>
+    <section class="page">
+      {% block content %}{% endblock %}
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
 </html>

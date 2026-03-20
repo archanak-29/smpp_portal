@@ -10,9 +10,13 @@ from utils.command_utils import UserCommand
 from repos.session_repo import SessionRepo
 from repos.smpp_port_config_repo import SmppPortConfigRepo
 from repos.sender_identifier_repo import SenderIdentifierRepo
+from utils.email_utils import EmailUtils
 import uuid
 
+
 class SmppUtils:
+
+    email_utils_obj = None
 
     @staticmethod
     def _get_user_repo():
@@ -23,6 +27,20 @@ class SmppUtils:
     def get_sender_id_repo():
         db = next(get_db_session())
         return db, SenderIdentifierRepo(db)
+
+
+    @staticmethod
+    def get_email_obj():
+
+        if SmppUtils.email_utils_obj == None:
+            SmppUtils.email_utils_obj = EmailUtils(
+            smtp_server=const.smtp_server,
+            smtp_port=const.smtp_port,
+            username=const.smtp_email,
+            password=const.smtp_password
+            )
+        return SmppUtils.email_utils_obj
+
 
     @staticmethod
     def validate_username_password(data):
@@ -130,6 +148,17 @@ class SmppUtils:
             db.close()
             return userList
 
+    @staticmethod
+    def get_user_by_id(user_id: str):
+        db, user_repo = SmppUtils._get_user_repo()
+        user = user_repo.find_by_user_id(user_id)
+
+        if user == None:
+            return "Invalid user", []
+        
+        vo = []
+        vo.append(user.to_dict())
+        return "success", vo
 
 
     @staticmethod
@@ -250,6 +279,10 @@ class SmppUtils:
         user = user_repo.find_by_user_id(user_id)
         if user == None:
             return "Invalid user"
+        elif user.sms_limit == user.today_sms_count:
+            # add email alert to user
+            return "Sms limit exceeded for today. Please come back tomorrow"
+
 
         if not SmppUtils.valdate_sender_id(sender_id):
             return "Invalid sender name"
@@ -294,3 +327,24 @@ class SmppUtils:
         sender_ids = sender_id_repo.find_by_user_id(user_id)
         db.close()
         return sender_ids
+
+
+    def send_email_alert_for_sms_limit_reached(to_email: str, user_name: str):
+
+        current_date = datetime.now().strftime("%Y-%m-%d")
+
+        body = f"""Dear {user_name},
+
+        Your SMS limit for {current_date} has been reached. You will be able to resume sending SMS from tomorrow.
+
+        If you have any questions, please contact your administrator.
+
+        Thank you,
+        Intelvision Services
+        """
+
+        SmppUtils.get_email_obj().send_email_async(
+            to_email,
+            "Alert: SMS Limit Reached!",
+            body
+        )

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h2>Users</h2>
+        <p class="muted">Manage SMPP client accounts, limits, and access levels.</p>
+    </div>
+    {% if is_admin %}
+    <button class="btn btn-primary" id="open-user-modal" type="button">Add User</button>
+    {% endif %}
+</div>
+
+<div class="card table-card">
+    <div class="table-head">
+        <!-- <div>
+      <h3>Client Accounts</h3>
+      <p class="muted">Live view from the SMPP user registry.</p>
+    </div> -->
+        <div class="table-actions">
+            <button class="btn btn-ghost"  type="text">Client Information</button>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>SMS Limit</th>
+                    <th>Used SMS</th>
+                    <th>Port</th>
+                    <th>Operations</th>
+                </tr>
+            </thead>
+
+            <tbody id="client-table-body"></tbody>
+            <tr>
+            </tr>
+            </tbody>
+
+
+
+        </table>
+
+        <!-- <div class="pagination" id="pagination">
+            <button id="prev-page" class="btn btn-ghost">Prev</button>
+            <span id="page-info"></span>
+            <button id="next-page" class="btn btn-ghost">Next</button>
+        </div> -->
+
+    </div>
+    <div class="table-foot" id="users-status"></div>`
+</div>
+
+<div class="modal" id="user-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card">
+        <div class="modal-head">
+            <h3>Add New User</h3>
+            <button class="icon-btn" data-close="true" type="button">Close</button>
+        </div>
+        <form id="add-user-form" class="form-grid">
+            <label class="form-field">
+                <span>Username</span>
+                <input id="user-username" type="text" required />
+            </label>
+            <label class="form-field">
+                <span>Email</span>
+                <input id="user-email" type="email" required />
+            </label>
+            <label class="form-field">
+                <span>Sender Name</span>
+                <input id="user-sender" type="text" required />
+            </label>
+            <label class="form-field">
+                <span>SMS Limit</span>
+                <input id="user-sms-limit" type="number" min="1" required />
+            </label>
+            <label class="form-field">
+                <span>Port</span>
+                <input id="user-port" type="number" min="1" required />
+            </label>
+            <label class="form-field">
+                <span>Full Name</span>
+                <input id="user-full-name" type="text" />
+            </label>
+            <label class="form-field">
+                <span>Company</span>
+                <input id="user-company" type="text" />
+            </label>
+            <label class="form-field">
+                <span>MSISDN</span>
+                <input id="user-msisdn" type="text" />
+            </label>
+            <label class="form-field">
+                <span>Password</span>
+                <input id="user-password" type="password" required />
+            </label>
+            <label class="form-field">
+                <span>Confirm Password</span>
+                <input id="user-password-confirm" type="password" required />
+            </label>
+            <label class="form-checkbox">
+                <input id="user-bulk" type="checkbox" />
+                <span>Enable bulk upload</span>
+            </label>
+            <div class="form-error" id="user-form-error"></div>
+            <div class="form-actions">
+                <button class="btn btn-ghost" data-close="true" type="button">Cancel</button>
+                <button class="btn btn-primary" id="user-submit" type="submit">Save User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="status-modal" style="display: none;">
+
+    <!-- Backdrop -->
+    <div class="modal-backdrop" data-close="true"></div>
+
+    <!-- Modal Card -->
+    <div class="modal-card specific-height">
+
+        <!-- Header -->
+        <div class="modal-head">
+            <h3 id="status-modal-title">Update Status</h3>
+            <button class="icon-btn" type="button" data-close="true">✕</button>
+        </div>
+
+        <!-- Form -->
+        <form id="status-form">
+
+            <!-- Reason Field -->
+            <label class="form-field">
+                <span>Reason for change</span>
+                <textarea id="status-reason" placeholder="Enter reason for activation/deactivation..." rows="4"
+                    required></textarea>
+            </label>
+
+            <!-- Error Message -->
+            <div class="form-error" id="status-error"></div>
+
+            <br>
+            <!-- Actions -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" id="cancel-status">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    Submit
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<div id="password-modal" class="modal">
+  <form id="password-form">
+    <h3>Change Password</h3>
+
+    <input type="password" id="old-password" placeholder="Old Password" required />
+    <input type="password" id="new-password" placeholder="New Password" required />
+
+    <p id="password-error" style="color:red;"></p>
+
+    <button type="submit">Submit</button>
+    <button type="button" onclick="closePasswordModal()">Cancel</button>
+  </form>
+</div>
+
+
+
+
+<div id="sender-modal" class="modal">
+  <form id="sender-form">
+    <h3>Add Sender Name</h3>
+
+    <input type="text" id="sender-name-input" placeholder="Sender Name" required />
+
+    <p id="sender-error" style="color:red;"></p>
+
+    <button type="submit">Submit</button>
+    <button type="button" onclick="closeSenderModal()">Cancel</button>
+  </form>
+</div>
+{% endblock %}

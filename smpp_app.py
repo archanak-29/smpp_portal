@@ -62,12 +62,15 @@ def users():
 def smpp_config():
     if "username" not in session:
         return redirect("/")
-    return render_template("smpp_config.html", username=session["username"], active_page="smpp_config", )
+    return render_template("smpp_config.html", username=session["username"], active_page="smpp_config")
 
 
 
-
-
+@app.route("/userinfo")
+def user_info():
+    if "username" not in session:
+        return redirect("/")
+    return render_template("clients.html", username=session["username"], active_page="user_info")
 
 
 # ------------ back-end API's ---------------
@@ -76,7 +79,7 @@ def smpp_config():
 def adminSignin():
     data = request.get_json()
 
-    print("User Input JSON >>> ", data)
+    print("Login Command >>> ", data)
 
     status, is_valid, user = SmppUtils.validate_username_password(data)
 
@@ -85,7 +88,8 @@ def adminSignin():
     session["username"] = data.get("username")
     session_table = SessionUtils.create_session("admin", "", user.is_admin, user.user_id)
 
-    return jsonify({"status": "success", "SessionId": session_table.session_key, "isAdmin": user.is_admin}), 200
+    return jsonify({"status": "success", "SessionId": session_table.session_key, 
+        "isAdmin": user.is_admin, "userId": user.user_id}), 200
 
 @app.post("/api/logout/")
 def logout():
@@ -181,10 +185,15 @@ def getAllSmppClientUsers():
 
 
 @app.get("/api/user_by_id/<user_id>")
-def getUserByUserId():
-    status, is_valid, user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
+def getUserByUserId(user_id):
+
+    status, is_valid, userId = SessionUtils.validate_session(request.headers.get('SESSIONID'))
     if not is_valid:
         return jsonify({"status": status}), 200
+    
+    status, vo = SmppUtils.get_user_by_id(user_id)
+    return jsonify({"status": "success", "userVo": vo}), 200
+
 
 @app.post("/api/add_sender_id")
 def addSenderId():
@@ -259,6 +268,21 @@ def getAllSenderIdentifiers(user_id):
     resp = [vo.to_dict() for vo in sender_ids]
     return jsonify({"status": "success", "senderIdentifiers": resp}), 200
 
+
+@app.put("/api/activate_deactivate_smpp_port/<int:config_id>")
+def activateOrDeactivateSmppPort(config_id):
+    status, is_valid, user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+
+    return jsonify({"status": "success"}), 200
+
+
+@app.post("/api/send_test_email")
+def sendTestEmail():
+    
+    SmppUtils.send_email_alert_for_sms_limit_reached("archana@inficloud.com", "Archana")
+    return jsonify({"status": "success"}), 200
 
 
 def main():

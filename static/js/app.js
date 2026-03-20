@@ -16,6 +16,12 @@ function setAdminFlag(isAdmin) {
   }
 }
 
+function setUserId(userId) {
+  if (typeof userId !== "undefined") {
+    localStorage.setItem("userId", String(userId));
+  }
+}
+
 async function apiFetch(path, options = {}) {
   const headers = new Headers(options.headers || {});
   const sessionId = getSessionId();
@@ -50,6 +56,7 @@ function initLogoutButton() {
       localStorage.removeItem("session_id");
       localStorage.removeItem("is_admin");
       localStorage.removeItem("username");
+      localStorage.removeItem("userId");
       window.location.href = "/";
     }
   });
@@ -80,12 +87,13 @@ function initLoginPage() {
       if (response.ok && data.status === "success") {
         setSessionId(data.SessionId);
         setAdminFlag(data.isAdmin);
+        setUserId(data.userId);
         localStorage.setItem("username", username);
-        if (data.isAdmin == true) {
-          window.location.href = "/admin";
-        } else {
-          window.location.href = "/dashboard";
-        }
+        // if (data.isAdmin == true) {
+        //   window.location.href = "/admin";
+        // } else {
+        window.location.href = "/dashboard";
+        // }
         return;
       }
       if (errorEl) errorEl.textContent = data.status || "Login failed";
@@ -193,7 +201,7 @@ function initUsersPage() {
 
   async function loadUsers() {
     if (!tableBody) return;
-    tableBody.innerHTML = "<tr><td colspan='5' class='table-muted'>Loading users...</td></tr>";
+    tableBody.innerHTML = "";
     if (statusEl) statusEl.textContent = "";
 
     try {
@@ -225,7 +233,7 @@ function initUsersPage() {
 
     const paginatedUsers = allUsers.slice(start, end);
 
-    renderUsers(paginatedUsers);
+    renderUsers(paginatedUsers, "users-table-body");
     updatePaginationUI();
   }
 
@@ -265,8 +273,8 @@ function initUsersPage() {
     }
   });
 
-  function renderUsers(users) {
-    const tableBody = document.getElementById("users-table-body");
+  function renderUsers(users, elementId) {
+    const tableBody = document.getElementById(elementId);
     tableBody.innerHTML = "";
 
     if (!users.length) {
@@ -280,6 +288,7 @@ function initUsersPage() {
       row.appendChild(createCell(user.user_name || "-"));
       row.appendChild(createCell(user.email || "-"));
       row.appendChild(createCell(user.sms_limit ?? "-"));
+      row.appendChild(createCell(user.today_sms_count ?? "-"));
       row.appendChild(createCell(user.port ?? "-"));
 
       // 🔥 TOGGLE CELL
@@ -414,6 +423,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const page = bodyEl.dataset.page;
   if (page === "login") initLoginPage();
   if (page === "users") initUsersPage();
+  if (page === "user_info") initUserInfoPage();
 });
 
 
@@ -455,4 +465,234 @@ function renderTable(ports) {
         `;
     tableBody.innerHTML += row;
   });
+}
+
+
+function initUserInfoPage() {
+
+  const tableBody = document.getElementById("client-table-body");
+  // const statusEl = document.getElementById("client-status");
+
+  let userId = localStorage.getItem("userId");
+
+  async function loadUser() {
+    if (!tableBody) return;
+
+
+    loadUsersByUserId(tableBody, userId)
+
+  }
+
+
+
+  function createCell(text) {
+    const td = document.createElement("td");
+    td.textContent = text || "-";
+    return td;
+  }
+
+  // close dropdown on outside click
+
+
+  // =========================
+  // INIT
+  // =========================
+  loadUser();
+}
+
+async function loadUsersByUserId(tableBody, userId) {
+  if (!tableBody) return;
+  tableBody.innerHTML = "";
+
+  if (typeof userId == "undefined") {
+    userId = localStorage.getItem("userId")
+  }
+
+  try {
+    const response = await apiFetch("/api/user_by_id/" + userId);
+    const data = await response.json();
+    if (!response.ok || data.status !== "success") {
+      throw new Error(data.status || "Failed to load user info.");
+    }
+    renderUsers(data.userVo, "client-table-body");
+
+    // if (responseEl) {
+    //   responseEl.textContent = JSON.stringify(data, null, 2);
+    // }
+    // if (statusEl) statusEl.textContent = `Showing ${data.smppClients.length} users.`;
+  } catch (err) {
+
+    console.log(err);
+    // if (responseEl) responseEl.textContent = "Unable to load response.";
+    tableBody.innerHTML = "<tr><td colspan='5' class='table-muted'>No users available.</td></tr>";
+  }
+
+
+
+  function renderUsers(users, elementId) {
+    const tableBody = document.getElementById(elementId);
+    tableBody.innerHTML = "";
+
+    if (!users.length) {
+      tableBody.innerHTML = "<tr><td colspan='5'>No users found</td></tr>";
+      return;
+    }
+
+    users.forEach((user) => {
+      const row = document.createElement("tr");
+
+      row.appendChild(createCell(user.user_name || "-"));
+      row.appendChild(createCell(user.email || "-"));
+      row.appendChild(createCell(user.sms_limit ?? "-"));
+      row.appendChild(createCell(user.today_sms_count ?? "-"));
+      row.appendChild(createCell(user.port ?? "-"));
+
+      // 🔥 ACTION DROPDOWN CELL
+      const actionCell = document.createElement("td");
+
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "relative";
+
+      // button (⋮ or Actions)
+      const actionBtn = document.createElement("button");
+      actionBtn.textContent = "⋮";
+      actionBtn.className = "action-btn";
+
+      // dropdown (hidden by default)
+      const dropdown = document.createElement("ul");
+      dropdown.className = "action-dropdown hidden";
+
+      dropdown.innerHTML = `
+  <li class="action-item change-password">Change Password</li>
+  <li class="action-item add-sender">Add Sender Name</li>
+`;
+
+      // toggle dropdown
+      actionBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+
+        // close all others
+        document.querySelectorAll(".action-dropdown").forEach(d => d.classList.add("hidden"));
+
+        dropdown.classList.toggle("hidden");
+      });
+
+      // 🔑 Change Password click
+      dropdown.querySelector(".change-password").addEventListener("click", () => {
+        openChangePasswordModal(user.user_id);
+      });
+
+      // ✉️ Add Sender click
+      dropdown.querySelector(".add-sender").addEventListener("click", () => {
+        openSenderModal(user.user_id);
+      });
+
+      wrapper.appendChild(actionBtn);
+      wrapper.appendChild(dropdown);
+      actionCell.appendChild(wrapper);
+      row.appendChild(actionCell);
+
+      tableBody.appendChild(row);
+    });
+  }
+
+
+
+
+
+
+
+
+
+
+  let selectedUserIdForAction = null;
+
+  function openChangePasswordModal(userId) {
+    selectedUserIdForAction = userId;
+    document.getElementById("password-modal").style.display = "flex";
+  }
+
+  function closePasswordModal() {
+    document.getElementById("password-modal").style.display = "none";
+    document.getElementById("password-form").reset();
+  }
+
+  document.getElementById("password-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const oldPassword = document.getElementById("old-password").value;
+    const newPassword = document.getElementById("new-password").value;
+
+    try {
+      await apiFetch("/api/change_password", {
+        method: "POST",
+        json: {
+          userId: selectedUserIdForAction,
+          oldPassword: await hashPassword(oldPassword),
+          newPassword: await hashPassword(newPassword)
+        }
+      });
+
+      closePasswordModal();
+      alert("Password updated successfully");
+
+    } catch (err) {
+      document.getElementById("password-error").textContent = "Failed to update password";
+    }
+  });
+
+
+
+
+  function openSenderModal(userId) {
+  selectedUserIdForAction = userId;
+  document.getElementById("sender-modal").style.display = "flex";
+}
+
+function closeSenderModal() {
+  document.getElementById("sender-modal").style.display = "none";
+  document.getElementById("sender-form").reset();
+}
+
+document.getElementById("sender-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const senderName = document.getElementById("sender-name-input").value.trim();
+
+  try {
+    await apiFetch("/api/update_sender_name", {
+      method: "POST",
+      json: {
+        userId: selectedUserIdForAction,
+        senderName: senderName
+      }
+    });
+
+    closeSenderModal();
+    alert("Sender name updated");
+
+  } catch (err) {
+    document.getElementById("sender-error").textContent = "Failed to update sender name";
+  }
+});
+
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".action-dropdown").forEach(d => d.classList.add("hidden"));
+  });
+
+
+
+
+
+
+
+
+
+
+
+  function createCell(text) {
+    const td = document.createElement("td");
+    td.textContent = text;
+    return td;
+  }
 }
