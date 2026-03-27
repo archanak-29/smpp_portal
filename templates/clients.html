@@ -2,8 +2,8 @@
 {% block content %}
 <div class="page-head">
     <div>
-        <h2>Users</h2>
-        <p class="muted">Manage SMPP client accounts, limits, and access levels.</p>
+        <h2>{{ page_title or 'User Details' }}</h2>
+        <p class="muted" style="margin: 0;">Detailed view of user accounts.</p>
     </div>
     {% if is_admin %}
     <button class="btn btn-primary" id="open-user-modal" type="button">Add User</button>
@@ -17,7 +17,7 @@
       <p class="muted">Live view from the SMPP user registry.</p>
     </div> -->
         <div class="table-actions">
-            <button class="btn btn-ghost"  type="text">Client Information</button>
+            <button class="btn btn-ghost" type="text">Client Information</button>
         </div>
     </div>
     <div class="table-wrap">
@@ -29,7 +29,6 @@
                     <th>SMS Limit</th>
                     <th>Used SMS</th>
                     <th>Port</th>
-                    <th>Operations</th>
                 </tr>
             </thead>
 
@@ -156,33 +155,4 @@
     </div>
 </div>
 
-<div id="password-modal" class="modal">
-  <form id="password-form">
-    <h3>Change Password</h3>
-
-    <input type="password" id="old-password" placeholder="Old Password" required />
-    <input type="password" id="new-password" placeholder="New Password" required />
-
-    <p id="password-error" style="color:red;"></p>
-
-    <button type="submit">Submit</button>
-    <button type="button" onclick="closePasswordModal()">Cancel</button>
-  </form>
-</div>
-
-
-
-
-<div id="sender-modal" class="modal">
-  <form id="sender-form">
-    <h3>Add Sender Name</h3>
-
-    <input type="text" id="sender-name-input" placeholder="Sender Name" required />
-
-    <p id="sender-error" style="color:red;"></p>
-
-    <button type="submit">Submit</button>
-    <button type="button" onclick="closeSenderModal()">Cancel</button>
-  </form>
-</div>
 {% endblock %}

@@ -5,11 +5,16 @@ from database.db_config import get_db_session
 from utils.session_utils import SessionUtils
 from utils.smpp_utils import SmppUtils
 from utils.command_utils import UserCommand
+from datetime import datetime
 
 
 
 app = Flask(__name__)
 app.secret_key = "smpp_secret_key"
+
+@app.context_processor
+def inject_admin_status():
+    return dict(is_admin=session.get('is_admin', False))
 
 
 # ----------------- Front-end API's -----------------
@@ -23,7 +28,10 @@ def dashboard():
     if "username" not in session:
         return redirect("/")
 
-    return render_template("dashboard.html", username=session["username"], active_page="dashboard")
+    if session.get("is_admin"):
+        return render_template("dashboard.html", username=session["username"], active_page="dashboard")
+    else:
+        return render_template("client_dashboard.html", username=session["username"], active_page="dashboard", page_title="Dashboard")
 
 
 @app.route("/admin")
@@ -54,7 +62,6 @@ def users():
     return render_template("users.html",username=session["username"],
         active_page="users",
         page_title="Users",
-        is_admin=True,
         session_id=""
     )
 
@@ -70,7 +77,31 @@ def smpp_config():
 def user_info():
     if "username" not in session:
         return redirect("/")
-    return render_template("clients.html", username=session["username"], active_page="user_info")
+    return render_template("clients.html", username=session["username"], active_page="user_info", page_title="User Information")
+
+@app.route("/send-sms")
+def send_sms():
+    if "username" not in session:
+        return redirect("/")
+    return render_template("send_sms.html", username=session["username"], active_page="send_sms", page_title="Send SMS")
+
+@app.route("/message-logs")
+def message_logs():
+    if "username" not in session:
+        return redirect("/")
+    return render_template("message_logs.html", username=session["username"], active_page="message_logs", page_title="Message Logs")
+
+@app.route("/reports")
+def reports():
+    if "username" not in session:
+        return redirect("/")
+    return render_template("reports.html", username=session["username"], active_page="reports", page_title="Reports")
+
+@app.route("/client-config")
+def client_config():
+    if "username" not in session:
+        return redirect("/")
+    return render_template("client_config.html", username=session["username"], active_page="client_config", page_title="SMPP Client Configuration")
 
 
 # ------------ back-end API's ---------------
@@ -85,8 +116,15 @@ def adminSignin():
 
     if not is_valid:
         return jsonify({"status": status}), 401
+    
+    is_admin = False
+    if user.is_admin != None:
+        is_admin = user.is_admin
+
     session["username"] = data.get("username")
-    session_table = SessionUtils.create_session("admin", "", user.is_admin, user.user_id)
+    session["is_admin"] = is_admin
+    
+    session_table = SessionUtils.create_session("admin", "", is_admin, user.user_id)
 
     return jsonify({"status": "success", "SessionId": session_table.session_key, 
         "isAdmin": user.is_admin, "userId": user.user_id}), 200
@@ -113,11 +151,11 @@ def changePassword():
 
     status, is_valid, user = SmppUtils.validate_username_password(data)
 
-    if user_id != user.user_id:
-        return jsonify()
-
     if not is_valid: 
         return jsonify({"status": status}), 200
+
+    if user_id != user.user_id:
+        return jsonify({"status", "Not allowed"}), 200
     
     status = SmppUtils.change_password(user, data.get("newPassword"))
 
@@ -127,7 +165,7 @@ def changePassword():
 @app.post("/api/add_user/")
 def addUser():
 
-    status, is_valid, user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
     if not is_valid:
         return jsonify({"status": status}), 200
         
@@ -145,11 +183,14 @@ def addUser():
         return jsonify({"status": "Username is required"}), 200
     elif not command.password or not command.actualPassword:
         return jsonify({"status": "Password is required"}), 200
+    elif not command.portUsername:
+        return jsonify({"status": "Username of port is required"}), 200
 
     if SmppUtils.check_if_email_exists(command.email):
         return jsonify({"status": "Email already exists"}), 200
-    user = SmppUtils.add_user(command)
-    return jsonify({"status": "success"}), 200
+    
+    status = SmppUtils.add_user(command)
+    return jsonify({"status": status}), 200
 
 
 @app.put("/api/active_deactive_user/")
@@ -198,7 +239,7 @@ def getUserByUserId(user_id):
 @app.post("/api/add_sender_id")
 def addSenderId():
 
-    status, is_valid, user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
     if not is_valid:
         return jsonify({"status": status}), 200
     
@@ -209,6 +250,49 @@ def addSenderId():
     return jsonify({"status": status}), 200
 
 
+@app.delete("/api/delete_sender_id/<sender_name>")
+def deleteSenderId(sender_name):
+
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+    
+    status = SmppUtils.delete_sender_identidier(sender_name)
+    return jsonify({"status": status}), 200
+
+
+@app.post("/api/add_smpp_user")
+def addSmppUser():
+
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+    
+    command = UserCommand(**request.json)
+
+    if not command.port or command.port == 0:
+        return jsonify({"status": "Port number is required"}), 200
+    elif not command.username:
+        return jsonify({"status": "Username is required"}), 200
+    elif not command.password:
+        return jsonify({"status": "Password is required"}), 200
+
+    status = SmppUtils.add_smpp_user(command)
+    return jsonify({"status": status}), 200
+
+@app.delete("/api/delete_smpp_user/<username>")
+def deleteSmppUser(username):
+
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+    
+    status = SmppUtils.delete_smpp_user(username)
+    return jsonify({"status": status}), 200
+
+    
+
+
 @app.post("/api/send_bulk_sms/")
 def sendBulkSms():
 
@@ -216,11 +300,26 @@ def sendBulkSms():
     if not is_valid:
         return jsonify({"status": status}), 200
     
-    status, is_allowed = SmppUtils.check_if_bulk_sms_allowed(request.headers.get('SESSIONID'))
+    status, is_allowed = SessionUtils.check_if_bulk_sms_allowed(request.headers.get('SESSIONID'))
     if not is_allowed:
         return jsonify({"status": status}), 200
 
-    # add here to send bulk sms
+    data = request.get_json()
+
+    receivers = []
+
+    receivers = data.get("receivers")
+    message = data.get("short_message")
+    senderId = data.get("senderId")
+
+    if not senderId:
+        return jsonify({"status", "Sender name is required"}), 200
+    elif not message:
+        return jsonify({"status": "Message is required"}), 200
+    elif receivers == None or not receivers:
+        return jsonify({"status": "Receiver numbers are required"}), 200
+    
+    SmppUtils.send_bulk_sms(senderId, receivers, message)
 
     return jsonify({"status": status}), 200
 
@@ -238,7 +337,7 @@ def getAllSmppPorts():
 
 
 @app.post("/api/send_a2p_sms")
-def sendA2PSms(sender_id, msisdn, short_msg):
+def sendA2PSms():
 
     status, is_valid, user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
     if not is_valid:
@@ -260,7 +359,7 @@ def sendA2PSms(sender_id, msisdn, short_msg):
 @app.get("/api/all_sender_identifiers/<user_id>")
 def getAllSenderIdentifiers(user_id):
 
-    status, is_valid, user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
+    status, is_valid, session_user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
     if not is_valid:
         return jsonify({"status": status}), 200
     
@@ -278,6 +377,18 @@ def activateOrDeactivateSmppPort(config_id):
     return jsonify({"status": "success"}), 200
 
 
+@app.put("/api/delete_user/<user_id>/<reason>")
+def deleteUser(user_id, reason):
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+    
+    status, is_valid = SmppUtils.delete_user(user_id, reason)
+    if not is_valid:
+        return jsonify({"status": status}), 200
+
+    return jsonify({"status": "success"}), 200
+
 @app.post("/api/send_test_email")
 def sendTestEmail():
     
@@ -285,7 +396,32 @@ def sendTestEmail():
     return jsonify({"status": "success"}), 200
 
 
+@app.get("/api/get_active_server_sessions")
+def getActiveServerSessions():
+
+    status, is_valid, user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+    
+
+    active_servers = SmppUtils.get_active_smpp_server_sessions()
+    return jsonify({"status": "success", "respList": active_servers})
+
+@app.get("/api/users_count")
+def getUsersCount():
+
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+    
+    total_count, active_count = SmppUtils.get_users_count()
+
+    return jsonify({"status": "success", "total_count": total_count, "active_count": active_count}), 200
+
+
+
 def main():
+    print(F"Loading SMTP deatils : {datetime.now()}")
     SmppUtils.load_smtp_details()
 
 

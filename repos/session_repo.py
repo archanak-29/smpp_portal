@@ -20,3 +20,6 @@ class SessionRepo:
     def get_by_session_key(self, session_key: str) -> SessionTable:
         return self.db.query(SessionTable).filter(SessionTable.session_key == session_key).first()
     
+    def delete_by_session_key(self, session_key: str):
+        return self.db.query(SessionTable).filter(SessionTable.session_key == session_key).delete()
+    

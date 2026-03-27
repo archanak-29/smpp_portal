@@ -1,4 +1,3 @@
-
 from sqlalchemy.orm import Session
 from models.sender_identifier import SenderIdentifier
 from sqlalchemy.exc import SQLAlchemyError
@@ -36,3 +35,21 @@ class SenderIdentifierRepo:
                 self.db.rollback()
 
     
+    def delete_by_user_id(self, user_id: str):
+        try:
+            count = self.db.query(SenderIdentifier).filter(
+                SenderIdentifier.user_id == user_id).delete()
+            self.db.commit()
+            return count
+        except (Exception, SQLAlchemyError) as e:
+                self.db.rollback()
+
+    def delete_by_sender_name(self, sender_name: str):
+        try:
+            count = self.db.query(SenderIdentifier).filter(
+                SenderIdentifier.identifier_name == sender_name).delete()
+            self.db.commit()
+            return count
+        except (Exception, SQLAlchemyError) as e:
+                e.__cause__
+                self.db.rollback()

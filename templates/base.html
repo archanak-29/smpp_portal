@@ -36,12 +36,16 @@
       <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/dashboard">Dashboard</a>
       <a class="nav-link {% if active_page == 'users' %}active{% endif %}" href="/users">Users</a>
       <a class="nav-link {% if active_page == 'ports' %}active{% endif %}" href="/ports">Ports</a>
-      <a class="nav-link {% if active_page == 'smpp_config' %}active{% endif %}" href="/smpp-config">SMPP Config</a>
+      <!-- <a class="nav-link {% if active_page == 'smpp_config' %}active{% endif %}" href="/smpp-config">SMPP Config</a> -->
 
       {% else %}
       <!-- ✅ NON-ADMIN MENU -->
-      <a class="nav-link {% if active_page == 'user_info' %}active{% endif %}" href="/userinfo">User Information</a>
-      <a class="nav-link {% if active_page == 'sms_usage' %}active{% endif %}" href="/smsusage">SMS Usage</a>
+      <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/dashboard">Dashboard</a>
+      <a class="nav-link {% if active_page == 'send_sms' %}active{% endif %}" href="/send-sms">Send SMS</a>
+      <a class="nav-link {% if active_page == 'message_logs' %}active{% endif %}" href="/message-logs">Message Logs</a>
+      <a class="nav-link {% if active_page == 'reports' %}active{% endif %}" href="/reports">Reports</a>
+      <a class="nav-link {% if active_page == 'client_config' %}active{% endif %}" href="/client-config">SMPP Client
+        Configuration</a>
 
       {% endif %}
     </nav>
@@ -53,16 +57,147 @@
         <div class="eyebrow">SMPP Service</div>
         <h1 class="page-title">{{ page_title }}</h1>
       </div>
-      <div class="topbar-actions">
-        <div class="user-pill">{{ username }}</div>
-        <button class="btn btn-ghost" id="logout-btn" type="button">Logout</button>
+      <div class="topbar-actions" style="position: relative;">
+        <!-- Profile Trigger -->
+        <div id="profile-menu-trigger"
+          style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+          <div
+            style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">
+            {{ username[0]|upper if username else 'U' }}
+          </div>
+          <div style="font-size: 12px; font-weight: 500; margin-top: 4px;">{{ username }}</div>
+        </div>
+
+        <!-- Dropdown -->
+        <ul id="profile-dropdown" class="action-dropdown hidden"
+          style="top: 100%; right: 0; min-width: 160px; margin-top: 10px;">
+          <li onclick="window.location.href='/userinfo'">Profile</li>
+          <li id="global-change-password-btn">Change Password</li>
+          <li id="logout-btn" style="color: red;">Logout</li>
+        </ul>
+
+        <div id="operation-status-toast"
+          style="display: none; position: absolute; top: calc(100% + 15px); right: 0; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: opacity 0.3s ease; z-index: 1000; white-space: nowrap; pointer-events: none;">
+        </div>
       </div>
     </header>
     <section class="page">
       {% block content %}{% endblock %}
     </section>
   </main>
+
+  <div class="modal" id="password-modal" style="display: none;">
+    <div class="modal-backdrop" id="password-modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Change Password</h3>
+        <button class="icon-btn" type="button" id="close-password-btn">✕</button>
+      </div>
+      <form id="password-form" class="form-grid">
+        <label class="form-field">
+          <span>Old Password</span>
+          <input id="old-password" type="password" placeholder="Old Password" required />
+        </label>
+        <label class="form-field">
+          <span>New Password</span>
+          <input id="new-password" type="password" placeholder="New Password" required />
+        </label>
+        <label class="form-field">
+          <span>Confirm Password</span>
+          <input id="confirm-password" type="password" placeholder="Confirm Password" required />
+        </label>
+        <div class="form-error" id="password-error"></div>
+        <br>
+        <div class="form-actions">
+          <button class="btn btn-ghost" type="button" id="cancel-password-btn">Cancel</button>
+          <button class="btn btn-primary" type="submit">Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
+
+
+
+
+
+{% block modals %}
+
+<div class="modal" id="delete-port-modal" style="display: none;">
+  <!-- Backdrop -->
+  <div class="modal-backdrop" data-close="true"></div>
+
+  <!-- Modal Card -->
+  <div class="modal-card">
+
+    <!-- Header -->
+    <div class="modal-head">
+      <h3 id="delete-port-modal-title">Delete Port</h3>
+      <button class="icon-btn" type="button" id="cancel-delete-x" data-close="true">✕</button>
+    </div>
+
+    <!-- Form -->
+    <form id="delete-port-form">
+
+      <p style="margin-bottom: 16px; font-size: 14px; color: var(--text-muted);">Are you sure you want to delete this
+        port? This action cannot be undone.</p>
+
+
+      <!-- Error Message -->
+      <div class="form-error" id="delete-error"></div>
+
+      <br>
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="cancel-delete">
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary">
+          Delete
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+<div class="modal" id="add-port-modal" style="display: none;">
+  <div class="modal-backdrop" id="add-port-backdrop" data-close="true"></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>Add New Port</h3>
+      <button class="icon-btn" data-close="true" type="button" id="close-add-port-btn">✕</button>
+    </div>
+    <form id="add-port-form" class="form-grid">
+      <label class="form-field">
+        <span>Smpp Username</span>
+        <input id="new-port-username" type="text" required />
+      </label>
+      <label class="form-field">
+        <span>Password</span>
+        <input id="new-port-password" type="password" maxlength="8" required />
+      </label>
+      <label class="form-field">
+        <span>Port</span>
+        <input id="new-port-number" type="number" min="1" required />
+      </label>
+      <label class="form-checkbox">
+        <input id="new-port-sms-read" type="checkbox" />
+        <span>Sms reading only</span>
+      </label>
+      <div class="form-error" id="add-port-error"></div>
+      <br>
+      <div class="form-actions">
+        <button class="btn btn-ghost" data-close="true" type="button" id="cancel-add-port-btn">Cancel</button>
+        <button class="btn btn-primary" type="submit">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
 
 </html>

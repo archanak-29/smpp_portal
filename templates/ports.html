@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<!-- <div class="page-head">
+<div class="page-head">
   <div>
     <h2>Ports</h2>
     <p class="muted">Monitor active listener ports and connection load.</p>
   </div>
-  <button class="btn btn-primary" type="button">Allocate Port</button>
-</div> -->
+  {% if is_admin %}
+  <button class="btn btn-primary" id="open-add-port-modal" type="button">Add Smpp User</button>
+  {% endif %}
+</div>
 
 <div class="card table-card">
   <div class="table-head">
@@ -19,11 +21,21 @@
           <th>Username</th>
           <th>Password</th>
           <th>Sms Configuration</th>
+          <th>Delete</th>
         </tr>
       </thead>
       <tbody id="ports-table-body">
       </tbody>
     </table>
+
+    <div class="pagination" id="ports-pagination">
+      <button id="ports-prev-page" class="btn btn-ghost">Prev</button>
+      <span id="ports-page-info"></span>
+      <button id="ports-next-page" class="btn btn-ghost">Next</button>
+    </div>
+    <br>
   </div>
 </div>
+
+
 {% endblock %}

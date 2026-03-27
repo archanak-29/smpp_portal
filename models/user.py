@@ -16,7 +16,6 @@ class User(Base):
     invalid_attempts = Column(Integer, default=3)
     created_on = Column(DateTime(timezone=True), server_default=func.now())
     last_updated_on = Column(DateTime(timezone=True))
-    sender_name = Column((String(250)), nullable=False)
     company_name = Column(String(200))
     last_login = Column(DateTime(timezone=True))
     port = Column(Integer)
@@ -28,6 +27,7 @@ class User(Base):
     last_update_reason = Column(String(500))
     today_sms_count = Column(Integer)
     sms_last_sent_on = Column(DateTime)
+    port_username = Column(String(20))
 
 
     def to_dict(self):
@@ -40,7 +40,6 @@ class User(Base):
             "created_on": self.created_on,
             "invalid_attempts": self.invalid_attempts,
             "full_name": self.full_name,
-            "sender_name": self.sender_name,
             "port": self.port,
             "sms_limit": self.sms_limit,
             "msisdn": self.msisdn,
@@ -48,6 +47,7 @@ class User(Base):
             "is_admin": self.is_admin,
             "a2p_sms_url": self.a2p_sms_url,
             "today_sms_count": self.today_sms_count,
-            "sms_last_sent_on": self.sms_last_sent_on
+            "sms_last_sent_on": self.sms_last_sent_on,
+            "port_username": self.port_username
         }
 

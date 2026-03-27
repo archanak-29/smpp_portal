@@ -43,6 +43,22 @@ class UserRepo:
             print(f"Error fetching users: {e}")
             return []
 
+    def count_all_users(self) -> int:
+        try:
+            return self.db.query(User).filter(User.is_deleted == False).count()
+        except (Exception, SQLAlchemyError) as e:
+            self.db.rollback()
+            print(f"Error Counting users: {e}")
+            return 0
+        
+    def count_users_by_state(self, is_active: bool) -> int:
+        try:
+            return self.db.query(User).filter(
+                (User.is_deleted == False) & (User.is_active == is_active)).count()
+        except (Exception, SQLAlchemyError) as e:
+            self.db.rollback()
+            print(f"Error Counting users: {e}")
+            return 0
 
     def find_by_email(self, email: str) -> User:
         try:

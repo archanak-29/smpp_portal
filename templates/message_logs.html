@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h2>Message Logs</h2>
+    <p class="muted">View history of messages sent and their delivery status.</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 2rem;">
+  <form class="form-grid" id="log-filter-form" style="grid-template-columns: 1fr 1fr 1fr auto; align-items: end;">
+    <label class="form-field">
+      <span>Date Range</span>
+      <input type="date" id="filter-date" />
+    </label>
+    <label class="form-field">
+      <span>Status</span>
+      <select id="filter-status">
+        <option value="">All Statuses</option>
+        <option value="delivered">Delivered</option>
+        <option value="failed">Failed</option>
+        <option value="pending">Pending</option>
+      </select>
+    </label>
+    <label class="form-field">
+      <span>Search (MSISDN / Ref)</span>
+      <input type="text" id="filter-search" placeholder="Search..." />
+    </label>
+    <button type="submit" class="btn btn-primary" style="height: 48px;">Apply Filters</button>
+  </form>
+</div>
+
+<div class="card table-card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Date & Time</th>
+          <th>Sender ID</th>
+          <th>Recipient</th>
+          <th>Message</th>
+          <th>Status</th>
+          <th>Error Reason</th>
+        </tr>
+      </thead>
+      <tbody id="logs-table-body">
+        <tr>
+          <td colspan="6" class="table-muted">No message logs found.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

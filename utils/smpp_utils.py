@@ -12,6 +12,7 @@ from repos.smpp_port_config_repo import SmppPortConfigRepo
 from repos.sender_identifier_repo import SenderIdentifierRepo
 from utils.email_utils import EmailUtils
 import uuid
+from typing import List
 
 
 class SmppUtils:
@@ -40,6 +41,16 @@ class SmppUtils:
             password=const.smtp_password
             )
         return SmppUtils.email_utils_obj
+
+    @staticmethod
+    def get_users_count():
+        db, user_repo = SmppUtils._get_user_repo()
+        try:
+            total_count = user_repo.count_all_users()
+            active_count = user_repo.count_users_by_state(True)
+            return total_count, active_count
+        finally:
+            db.close()
 
 
     @staticmethod
@@ -164,6 +175,9 @@ class SmppUtils:
     @staticmethod
     def add_user(command: UserCommand):
 
+        if not SmppUtils.validate_smpp_user_and_port(command.portUsername, command.port):
+            return "Invalid Smpp user details entered"
+
         db, user_repo = SmppUtils._get_user_repo()
         user_id = str(uuid.uuid4())
         try:
@@ -181,26 +195,54 @@ class SmppUtils:
                 "msisdn": command.msisdn,
                 "company_name": command.companyName,
                 "last_updated_on": datetime.now(),
-                "is_admin": False
+                "is_admin": False,
+                "port_username": command.portUsername
             }
 
-            sender = SmppUtils.add_sender_identifier(user_id, command.senderName)
-            return user_repo.create(**user)
+            SmppUtils.add_sender_identifier(user_id, command.senderName)
+            user = user_repo.create(**user)
+
+            SmppUtils.send_user_creation_email(command.email, command.username, command.actualPassword)
+            return "success"
 
         finally:
             db.close()
+
+    def validate_smpp_user_and_port(username: str, port: int):
+        db = next(get_db_session())
+        port_config_repo = SmppPortConfigRepo(db)
+
+        port_config = port_config_repo.find_by_user_name_and_port(username, port)
+        if port_config == None:
+            return False
+        return True
 
     @staticmethod
     def add_sender_identifier(user_id: str, sender_name: str):
         db = next(get_db_session())
         sender_id_repo = SenderIdentifierRepo(db)
 
+        sender_id = sender_id_repo.find_by_sender_name(sender_name)
+        if sender_id != None:
+            return "Sender name already exists, please enter another one."
+
         sender_info = {
             "user_id": user_id,
             "identifier_name": sender_name,
         }
 
-        return sender_id_repo.create(**sender_info)
+        sender_id_repo.create(**sender_info)
+        db.close()
+        return "success"
+
+    @staticmethod
+    def delete_sender_ids_on_user_deletion(user_id: str):
+        db = next(get_db_session())
+        sender_id_repo = SenderIdentifierRepo(db)
+
+        print(F"Deleting Sender Id's")
+        sender_id_repo.delete_by_user_id(user_id)
+
 
     @staticmethod
     def add_sender_id(user_id: str, sender_id: str):
@@ -211,33 +253,63 @@ class SmppUtils:
             if user == None:
                 return "Invalid user selected"
             
-            SmppUtils.add_sender_identifier(user_id, sender_id)
+            return SmppUtils.add_sender_identifier(user_id, sender_id)
 
-            return "success"
         finally:
             db.close()
+
+    @staticmethod
+    def delete_sender_identidier(sender_name: str):
+        db = next(get_db_session())
+        sender_id_repo = SenderIdentifierRepo(db)
+
+        sender_id = sender_id_repo.find_by_sender_name(sender_name)
+        if sender_id == None:
+            return "Invalid sender name"
+        count = sender_id_repo.delete_by_sender_name(sender_name=sender_name)
+        print(F"Deleted count : {count}")
+        return "success"
 
 
     @staticmethod
-    def check_if_bulk_sms_allowed(session_id: str):
-
+    def add_smpp_user(command: UserCommand):
+        
         db = next(get_db_session())
-        try:
-            session_repo = SessionRepo(db)
-            session = session_repo.get_by_session_key(session_id)
-            if not session:
-                return "Invalid Session", False
+        port_config_repo = SmppPortConfigRepo(db)
 
-            user_repo = UserRepo(db)
-            user = user_repo.find_by_user_id(session.user_id)
-            if not user or not user.is_active:
-                return "Invalid/Inactive user", False
-            elif user.is_bulk_upload_enabled == None or not user.is_bulk_upload_enabled:
-                return "Bulk upload disabled", False
+        port_config = port_config_repo.find_by_user_name(command.username)
+        if port_config != None:
+            return "User exists with this username, try another one."
 
-            return "success", True
-        finally:
-            db.close()
+        port_config_data = {
+            "created_on": datetime.now(),
+            "is_active": True,
+            "host": "smpp-server",
+            "is_read_only_sms": command.isReadOnlySms,
+            "system_id": command.username,
+            "password": command.password,
+            "port": command.port
+        }
+
+        port_config_repo.create(**port_config_data)
+        db.close()
+        return "success"
+
+    
+    @staticmethod
+    def delete_smpp_user(username: str):
+        db = next(get_db_session())
+        port_config_repo = SmppPortConfigRepo(db)
+
+        port_config = port_config_repo.find_by_user_name(username)
+        if port_config == None:
+            return "Invalid Smpp User"
+        
+        port_config_repo.delete_by_user_name(username)
+        return "success"
+        
+
+        
 
 
     @staticmethod
@@ -264,6 +336,33 @@ class SmppUtils:
             db.close()
 
 
+    @staticmethod
+    def delete_user(user_id: str, reason: str):
+
+        SmppUtils.delete_sender_ids_on_user_deletion(user_id)
+
+        db, user_repo = SmppUtils._get_user_repo()
+        try:
+            user = user_repo.find_by_user_id(user_id)
+
+            if user == None:
+                return "Invalid user selected", False
+            elif user.is_active == True:
+                return "User is in active state", False
+
+            updatedData = {
+                "is_deleted": True,
+                "last_updated_on": datetime.now(),
+                "last_update_reason": reason
+            }
+            print(F"Deleting user {user.user_name}")
+            user = user_repo.update_user(user_id, **updatedData)
+            return "success", True
+
+        finally:
+            db.close()
+
+
     def get_all_smpp_ports():
         db = next(get_db_session())
         port_config_repo = SmppPortConfigRepo(db)
@@ -273,7 +372,7 @@ class SmppUtils:
         return all_ports
 
 
-    def send_single_a2p_sms(sender_id, receiver, short_msg, user_id):
+    def send_single_a2p_sms(sender_id, receiver:str, short_msg, user_id):
 
         db, user_repo = SmppUtils._get_user_repo()
         user = user_repo.find_by_user_id(user_id)
@@ -287,19 +386,41 @@ class SmppUtils:
         if not SmppUtils.valdate_sender_id(sender_id):
             return "Invalid sender name"
         
-        to_mdns = [receiver]
+        to_mdns = []
+        to_mdns.append(receiver)
         payload = {
             "shortMessage": short_msg,
             "fromMDN": sender_id,
             "toMdnList": to_mdns
         }
 
-        resp = HttpUtils.post(const.smpp_a2p_sms_url, payload, None)
+        print(F"Sending Submit SM API: {const.subit_sm_url}")
+        print(F"Payload : {payload}")
+        
+        resp = HttpUtils.post(const.subit_sm_url, payload=payload, headers=const.json_content_header)
+        if resp !=  None:
+            return resp["status"]
+        else:
+            return "Unknown error"
+
+
+    def send_bulk_sms(sender_name: str, msisdns: List, message: str):
+
+        is_valid, user_id = SmppUtils.valdate_sender_id(sender_name)
+        if not is_valid:
+            return "Invalid sender name"
+        
+        payload = {
+            "shortMessage": message,
+            "fromMDN": sender_name,
+            "toMdnList": msisdns
+        }
+
+        resp = HttpUtils.post(const.subit_sm_url, payload, None)
         if resp !=  None:
             return resp["status"] == "success"
         else:
             return "Unknown error"
-
 
 
     def valdate_sender_id(sender_id: str):
@@ -329,6 +450,23 @@ class SmppUtils:
         return sender_ids
 
 
+    def get_active_smpp_server_sessions():
+        resp = HttpUtils.get(const.active_session_api, None, None)
+
+        if resp == None:
+            return "Unknown error"
+        respList = []
+        respList = resp["respList"]
+        return respList
+
+
+
+
+
+
+
+# ------------- Email Bodies ------------------
+    @staticmethod
     def send_email_alert_for_sms_limit_reached(to_email: str, user_name: str):
 
         current_date = datetime.now().strftime("%Y-%m-%d")
@@ -348,3 +486,37 @@ class SmppUtils:
             "Alert: SMS Limit Reached!",
             body
         )
+
+    @staticmethod
+    def send_user_creation_email(to_email: str, user_name: str, password: str):
+
+        body = f"""Dear {user_name},
+
+        Welcome to Intelvision Services!
+
+        Your SMPP account has been successfully created. Please find your login credentials below:
+
+        Username: {user_name}
+        Password: {password}
+
+        URL: {const.dashboard_url}
+
+        You can use the above credentials to log in and start using our SMPP service.
+
+        For security reasons, we strongly recommend that you change your password after your first login and keep your credentials confidential.
+
+        If you face any issues or have any questions, please feel free to contact your administrator or support team.
+
+        We look forward to serving you.
+
+        Thank you,
+        Intelvision Services
+        """
+
+        SmppUtils.get_email_obj().send_email_async(
+            to_email,
+            "Welcome! Your SMPP Account is Ready",
+            body
+        )
+    
+    

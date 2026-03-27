@@ -55,7 +55,7 @@ class SessionUtils:
             session = repo.get_by_session_key(session_id)
 
             if not session:
-                return "Invalid Session", False
+                return "Invalid Session, log in again", False
 
             session_date = session.date.replace(tzinfo=timezone.utc)
 
@@ -68,6 +68,28 @@ class SessionUtils:
                 return "Invalid user", False
             elif not user.is_admin:
                 return "Not allowed", False
+            return "success", True
+        finally:
+            db.close()
+
+
+    @staticmethod
+    def check_if_bulk_sms_allowed(session_id: str):
+
+        db = next(get_db_session())
+        try:
+            session_repo = SessionRepo(db)
+            session = session_repo.get_by_session_key(session_id)
+            if not session:
+                return "Invalid Session", False
+
+            user_repo = UserRepo(db)
+            user = user_repo.find_by_user_id(session.user_id)
+            if not user or not user.is_active:
+                return "Invalid/Inactive user", False
+            elif user.is_bulk_upload_enabled == None or not user.is_bulk_upload_enabled:
+                return "Bulk upload disabled", False
+
             return "success", True
         finally:
             db.close()

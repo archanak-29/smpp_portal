@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h2>SMPP Client Configuration</h2>
+    <p class="muted">View your bound ports and authentication details for SMPP connection.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width: 800px;">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Port</th>
+          <th>System ID</th>
+          <th>Password</th>
+          <th>Connection Type</th>
+        </tr>
+      </thead>
+      <tbody id="client-config-body">
+         <tr>
+            <td colspan="4" class="table-muted">Loading configuration...</td>
+         </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

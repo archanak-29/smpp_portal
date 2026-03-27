@@ -16,7 +16,9 @@ class UserCommand:
         actualPassword=None,
         newPassword=None,
         senderName=None,
-        port=None
+        port=None,
+        portUsername=None, 
+        isReadOnlySms=None
     ):
         self.username = username
         self.fullName = fullName
@@ -30,5 +32,7 @@ class UserCommand:
         self.newPassword = newPassword
         self.senderName = senderName
         self.port = port
+        self.portUsername = portUsername
+        self.isReadOnlySms = isReadOnlySms
     
 

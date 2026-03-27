@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h2>Send SMS</h2>
+    <p class="muted">Send single or bulk SMS messages.</p>
+  </div>
+</div>
+
+<div class="tabs" style="margin-bottom: 2rem; display: flex; gap: 1rem; border-bottom: 1px solid var(--border);">
+  <button class="tab-btn active" id="tab-single-sms"
+    style="padding: 1rem; border: none; background: none; border-bottom: 2px solid var(--primary); font-weight: 600; cursor: pointer;">Single
+    SMS</button>
+  <button class="tab-btn" id="tab-bulk-sms"
+    style="padding: 1rem; border: none; background: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 500; cursor: pointer;">Bulk
+    SMS</button>
+  <!-- <button class="tab-btn" id="tab-api-info" style="padding: 1rem; border: none; background: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 500; cursor: pointer;">API / SMPP Usage Info</button> -->
+</div>
+
+<div id="content-single-sms" class="tab-content" style="display: block;">
+  <div class="card" style="max-width: 600px;">
+    <h3 style="margin-bottom: 1.5rem;">Send a Message</h3>
+    <form id="single-sms-form" class="form-grid" style="grid-template-columns: 1fr;">
+      <label class="form-field">
+        <span>Sender ID</span>
+        <select id="sms-sender-id" required>
+          <option value="" disabled selected>Select Sender ID...</option>
+        </select>
+      </label>
+      <label class="form-field">
+        <span>Recipient MSISDN</span>
+        <input type="text" id="sms-msisdn" placeholder="e.g. 1234567890" required />
+      </label>
+      <label class="form-field">
+        <span>Message Text</span>
+        <textarea id="sms-message" rows="4" placeholder="Enter your message here..." required></textarea>
+      </label>
+      <div id="single-sms-error" class="form-error"></div>
+      <div class="form-actions" style="justify-content: flex-start; margin-top: 1rem;">
+        <button type="submit" class="btn btn-primary" id="btn-send-single">Send Message</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="content-bulk-sms" class="tab-content" style="display: none;">
+  <div class="card" style="max-width: 600px;">
+    <h3 style="margin-bottom: 1.5rem;">Upload Bulk SMS CSV</h3>
+    <form id="bulk-sms-form" class="form-grid" style="grid-template-columns: 1fr;">
+      <label class="form-field">
+        <span>Sender ID</span>
+        <select id="bulk-sms-sender-id" required>
+          <option value="" disabled selected>Select Sender ID...</option>
+        </select>
+      </label>
+      <div style="font-size: 14px; margin-bottom: 0.5rem; color: var(--text-main);">
+        <strong>Note:</strong> Bulk SMS Template file should be in CSV format and use similar headers.
+        <a href="/static/Sample.csv" download style="color: blue; font-weight: bold; text-decoration: none; margin-left: 5px;">Download sample csv file</a>
+      </div>
+      <label class="form-field">
+        <span style="display: none;">Upload File (.csv)</span>
+        <div
+          style="border: 2px dashed var(--border); border-radius: 8px; padding: 2rem; text-align: center; background: #fafafa; cursor: pointer;"
+          id="bulk-upload-zone">
+          Click to upload or drag and drop<br>
+          <span style="font-size: 12px; color: var(--text-muted);" id="bulk-file-name">Max file size: 5MB</span>
+          <input type="file" id="bulk-sms-file" accept=".csv" style="display: none;" />
+        </div>
+      </label>
+      <label class="form-field">
+        <span>Message Text</span>
+        <textarea id="bulk-sms-message" rows="4" placeholder="Enter your message here..." required></textarea>
+      </label>
+      <div id="bulk-sms-error" class="form-error"></div>
+      <div class="form-actions" style="justify-content: flex-start; margin-top: 1rem;">
+        <button type="submit" class="btn btn-primary" id="btn-send-bulk">Upload and Process</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="content-api-info" class="tab-content" style="display: none;">
+  <div class="card" style="max-width: 800px;">
+    <h3 style="margin-bottom: 1.5rem;">API & SMPP Usage</h3>
+    <p>API Endpoint: <code>POST /api/send_a2p_sms</code></p>
+    <p>Headers required: <code>SESSIONID: &lt;your_session_id&gt;</code></p>
+    <p>Body:</p>
+    <pre style="background: #f4f4f4; padding: 1rem; border-radius: 4px; overflow-x: auto; font-family: monospace;">
+{
+  "senderId": "string",
+  "msisdn": "string",
+  "short_message": "string"
+}
+    </pre>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.borderBottom = '2px solid transparent';
+        b.style.color = 'var(--text-muted)';
+        b.style.fontWeight = '500';
+      });
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+
+      this.classList.add('active');
+      this.style.borderBottom = '2px solid var(--primary)';
+      this.style.color = 'var(--text-main)';
+      this.style.fontWeight = '600';
+
+      if (this.id === 'tab-single-sms') document.getElementById('content-single-sms').style.display = 'block';
+      if (this.id === 'tab-bulk-sms') document.getElementById('content-bulk-sms').style.display = 'block';
+      if (this.id === 'tab-api-info') document.getElementById('content-api-info').style.display = 'block';
+    });
+  });
+</script>
+{% endblock %}

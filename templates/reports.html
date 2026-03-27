@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h2>Reports</h2>
+    <p class="muted">Generate and download usage and delivery reports.</p>
+  </div>
+  <button class="btn btn-primary" id="btn-download-reports">Download Report (CSV)</button>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 2rem;">
+  <div class="stat-card">
+    <div class="stat-title">Total SMS This Month</div>
+    <div class="stat-value" id="report-total-sms">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-title">Successful Deliveries</div>
+    <div class="stat-value" id="report-successful">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-title">Failed Deliveries</div>
+    <div class="stat-value" id="report-failed">0</div>
+  </div>
+</div>
+
+<div class="card table-card">
+  <div class="table-head">
+    <div>
+      <h3>Daily Usage Summary</h3>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Total Attempted</th>
+          <th>Delivered</th>
+          <th>Failed</th>
+          <th>Delivery Rate</th>
+        </tr>
+      </thead>
+      <tbody id="reports-table-body">
+         <tr>
+           <td colspan="5" class="table-muted">No usage data found for this period.</td>
+         </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
