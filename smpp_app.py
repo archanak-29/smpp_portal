@@ -6,6 +6,8 @@ from utils.session_utils import SessionUtils
 from utils.smpp_utils import SmppUtils
 from utils.command_utils import UserCommand
 from datetime import datetime
+import utils.constants as const
+from utils.enums import SmsSendType
 
 
 
@@ -245,6 +247,9 @@ def addSenderId():
     
     data = request.get_json()
 
+    if len(data.get("senderId")) > 11:
+        return jsonify({"status": "Sender name must not exceed 11 characters."}), 200
+
     status = SmppUtils.add_sender_id(data.get("userId"), data.get("senderId"))
 
     return jsonify({"status": status}), 200
@@ -300,15 +305,16 @@ def sendBulkSms():
     if not is_valid:
         return jsonify({"status": status}), 200
     
-    status, is_allowed = SessionUtils.check_if_bulk_sms_allowed(request.headers.get('SESSIONID'))
-    if not is_allowed:
-        return jsonify({"status": status}), 200
-
     data = request.get_json()
 
-    receivers = []
-
     receivers = data.get("receivers")
+    print("Length of receivers in BULK SMS: ", len(receivers))
+
+    status, user = SessionUtils.check_if_bulk_sms_allowed(request.headers.get('SESSIONID'), len(receivers))
+    if status != "success":
+        return jsonify({"status": status}), 200
+
+    
     message = data.get("short_message")
     senderId = data.get("senderId")
 
@@ -319,21 +325,9 @@ def sendBulkSms():
     elif receivers == None or not receivers:
         return jsonify({"status": "Receiver numbers are required"}), 200
     
-    SmppUtils.send_bulk_sms(senderId, receivers, message)
+    SmppUtils.send_bulk_sms(senderId, receivers, message, user)
 
     return jsonify({"status": status}), 200
-
-
-@app.get("/api/all_smpp_ports")
-def getAllSmppPorts():
-    
-    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
-    if not is_valid:
-        return jsonify({"status": status}), 200
-    
-    smpp_ports = SmppUtils.get_all_smpp_ports()
-    resp = [vo.to_dict() for vo in smpp_ports]
-    return jsonify({"status": "success", "smppPorts": resp}), 200
 
 
 @app.post("/api/send_a2p_sms")
@@ -351,9 +345,28 @@ def sendA2PSms():
     msisdn = data.get("msisdn")
     short_msg = data.get("short_message")
 
+    if len(msisdn) != 7 and len(msisdn) != 10:
+        return jsonify({"status": "Invalid length for mobile number"}), 200
+    elif len(msisdn) == 7:
+        msisdn = const.country_code + msisdn
+
     status = SmppUtils.send_single_a2p_sms(sender_id, msisdn, short_msg, user_id)
 
     return jsonify({"status": status}), 200
+
+
+
+@app.get("/api/all_smpp_ports")
+def getAllSmppPorts():
+    
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+    
+    smpp_ports = SmppUtils.get_all_smpp_ports()
+    resp = [vo.to_dict() for vo in smpp_ports]
+    return jsonify({"status": "success", "smppPorts": resp}), 200
+
 
 
 @app.get("/api/all_sender_identifiers/<user_id>")
@@ -418,6 +431,46 @@ def getUsersCount():
 
     return jsonify({"status": "success", "total_count": total_count, "active_count": active_count}), 200
 
+
+@app.get("/api/get_sms_log_by_ref_id/<type>/<value>/<reference_id>")
+def getSmsLogsBySearchTypeAndReferenceId(type, value, reference_id):
+
+    status, is_valid, user_id = SessionUtils.validate_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+
+    if type == None or (type != SmsSendType.SingleSms.value and type != SmsSendType.BulkSms.value):
+        return jsonify({"status": "Invalid search type"}), 200
+    elif type == SmsSendType.SingleSms.value:
+        print
+    elif type == SmsSendType.BulkSms.value:
+        print
+
+    return jsonify({"status": "success"}), 200
+
+
+@app.put("/api/update_bulk_sms_enable_state/<user_id>/<bulk_status>")
+def updateBulkSmsEnabledState(user_id, bulk_status):
+
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+    
+    bulk_status = bool(bulk_status)
+    
+    status = SmppUtils.update_bulk_sms_enabled_state(user_id, bulk_status)
+    return jsonify({"status": status}), 200
+
+
+@app.put("/api/update_sms_limit/<user_id>/<sms_limit>")
+def updateSmsLimit(user_id, sms_limit):
+
+    status, is_valid = SessionUtils.validate_admin_session(request.headers.get('SESSIONID'))
+    if not is_valid:
+        return jsonify({"status": status}), 200
+
+    status = SmppUtils.update_sms_limit(user_id, sms_limit)
+    return jsonify({"status": status}), 200
 
 
 def main():

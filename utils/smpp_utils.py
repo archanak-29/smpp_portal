@@ -279,7 +279,7 @@ class SmppUtils:
 
         port_config = port_config_repo.find_by_user_name(command.username)
         if port_config != None:
-            return "User exists with this username, try another one."
+            return "User already exists with this username, try another one."
 
         port_config_data = {
             "created_on": datetime.now(),
@@ -337,6 +337,49 @@ class SmppUtils:
 
 
     @staticmethod
+    def update_bulk_sms_enabled_state(user_id:str, bulk_status:bool):
+        db, user_repo = SmppUtils._get_user_repo()
+        try:
+            user = user_repo.find_by_user_id(user_id)
+
+            if user == None:
+                return "Invalid user selected"
+            
+            updatedData = {
+                "is_bulk_upload_enabled": bulk_status,
+                "last_updated_on": datetime.now(),
+                "last_update_reason": "Bulk status updated to " + str(bulk_status)
+            }
+
+            user_repo.update_user(user_id, **updatedData)
+            return "success"
+
+        finally:
+            db.close()
+
+
+    @staticmethod
+    def update_sms_limit(user_id:str, sms_limit:int):
+        db, user_repo = SmppUtils._get_user_repo()
+        try:
+            user = user_repo.find_by_user_id(user_id)
+
+            if user == None:
+                return "Invalid user selected"
+            
+            updatedData = {
+                "sms_limit": sms_limit,
+                "last_updated_on": datetime.now(),
+                "last_update_reason": "Updating sms limit to " + str(sms_limit)
+            }
+
+            user_repo.update_user(user_id, **updatedData)
+            return "success"
+
+        finally:
+            db.close()
+
+    @staticmethod
     def delete_user(user_id: str, reason: str):
 
         SmppUtils.delete_sender_ids_on_user_deletion(user_id)
@@ -379,8 +422,11 @@ class SmppUtils:
         if user == None:
             return "Invalid user"
         elif user.sms_limit == user.today_sms_count:
-            # add email alert to user
             return "Sms limit exceeded for today. Please come back tomorrow"
+        
+        is_valid, user_id = SmppUtils.valdate_sender_id(sender_id)
+        if not is_valid:
+            return "Invalid sender name"
 
 
         if not SmppUtils.valdate_sender_id(sender_id):
@@ -399,28 +445,52 @@ class SmppUtils:
         
         resp = HttpUtils.post(const.subit_sm_url, payload=payload, headers=const.json_content_header)
         if resp !=  None:
+            SmppUtils.update_used_sms_count(user, user_repo, 1)
             return resp["status"]
         else:
             return "Unknown error"
 
 
-    def send_bulk_sms(sender_name: str, msisdns: List, message: str):
+
+    def send_bulk_sms(sender_name: str, msisdns: List, message: str, user:User):
+
+        db, user_repo = SmppUtils._get_user_repo()
 
         is_valid, user_id = SmppUtils.valdate_sender_id(sender_name)
         if not is_valid:
             return "Invalid sender name"
-        
-        payload = {
-            "shortMessage": message,
-            "fromMDN": sender_name,
-            "toMdnList": msisdns
-        }
+        try:
+            payload = {
+                "shortMessage": message,
+                "fromMDN": sender_name,
+                "toMdnList": msisdns
+            }
 
-        resp = HttpUtils.post(const.subit_sm_url, payload, None)
-        if resp !=  None:
-            return resp["status"] == "success"
+            resp = HttpUtils.post(const.subit_sm_url, payload, None)
+            if resp !=  None:
+                SmppUtils.update_used_sms_count(user, user_repo, len(msisdns))
+                return resp["status"] == "success"
+            else:
+                return "Unknown error"
+        finally:
+            db.close()
+
+    def update_used_sms_count(user:User, user_repo:UserRepo, sms_count:int):
+        updated_user = {}
+        if user.today_sms_count == None:
+            updated_user = {
+                "today_sms_count": sms_count,
+                "sms_last_sent_on": datetime.now()
+            }
         else:
-            return "Unknown error"
+            updated_user = {
+                "today_sms_count": user.today_sms_count + sms_count,
+                "last_updated_on": datetime.now(),
+                "last_update_reason": "Sms usage updated" 
+            }
+
+        user = user_repo.update_user(user.user_id, **updated_user)
+        SmppUtils.send_email_alert_for_sms_limit_reached(user.email, user.user_name)
 
 
     def valdate_sender_id(sender_id: str):

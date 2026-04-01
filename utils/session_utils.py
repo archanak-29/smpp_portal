@@ -74,22 +74,27 @@ class SessionUtils:
 
 
     @staticmethod
-    def check_if_bulk_sms_allowed(session_id: str):
+    def check_if_bulk_sms_allowed(session_id: str, bulk_count):
 
         db = next(get_db_session())
         try:
             session_repo = SessionRepo(db)
             session = session_repo.get_by_session_key(session_id)
             if not session:
-                return "Invalid Session", False
+                return "Invalid Session", None
 
             user_repo = UserRepo(db)
             user = user_repo.find_by_user_id(session.user_id)
             if not user or not user.is_active:
-                return "Invalid/Inactive user", False
+                return "Invalid/Inactive user", None
             elif user.is_bulk_upload_enabled == None or not user.is_bulk_upload_enabled:
-                return "Bulk upload disabled", False
+                return "Bulk upload disabled", None
+            elif user.sms_limit == user.today_sms_count:
+                return "Sms limit exceeded", None
+            elif user.today_sms_count != None and (user.today_sms_count + bulk_count) > user.sms_limit:
+                allowed = user.sms_limit - user.today_sms_count
+                return "Limit will exceed, only " + str(allowed) + " left", None
 
-            return "success", True
+            return "success", user
         finally:
             db.close()

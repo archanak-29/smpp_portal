@@ -368,22 +368,70 @@ function initUsersPage() {
       toggle.checked = Boolean(user.is_active);
       toggle.className = "toggle-switch";
 
-      // 👉 IMPORTANT: toggle click logic
-      toggle.addEventListener("change", (e) => {
-        e.preventDefault();
+      const isAdminSessionForStatus = localStorage.getItem("is_admin") === "true";
+      if (!isAdminSessionForStatus) {
+        toggle.disabled = true;
+      } else {
+        // 👉 IMPORTANT: toggle click logic
+        toggle.addEventListener("change", (e) => {
+          e.preventDefault();
 
-        selectedUserId = user.user_id;
-        selectedStatus = toggle.checked;
-        currentToggle = toggle;
+          selectedUserId = user.user_id;
+          selectedStatus = toggle.checked;
+          currentToggle = toggle;
 
-        // revert until confirmed
-        toggle.checked = !toggle.checked;
+          // revert until confirmed
+          toggle.checked = !toggle.checked;
 
-        openStatusModal(selectedStatus);
-      });
+          openStatusModal(selectedStatus);
+        });
+      }
 
       statusCell.appendChild(toggle);
       row.appendChild(statusCell);
+
+      // 🔥 BULK SMS TOGGLE CELL
+      const bulkSmsCell = document.createElement("td");
+
+      const bulkSmsToggle = document.createElement("input");
+      bulkSmsToggle.type = "checkbox";
+      bulkSmsToggle.checked = Boolean(user.is_bulk_upload_enabled);
+      bulkSmsToggle.className = "toggle-switch";
+
+      const isAdminSession = localStorage.getItem("is_admin") === "true";
+      if (!isAdminSession) {
+        bulkSmsToggle.disabled = true;
+      } else {
+        // 👉 IMPORTANT: toggle click logic
+        bulkSmsToggle.addEventListener("change", async (e) => {
+          e.preventDefault();
+
+          const newStatus = bulkSmsToggle.checked;
+          const previousStatus = !newStatus;
+          bulkSmsToggle.disabled = true;
+
+          const statusStr = newStatus ? "True" : "False";
+
+          try {
+            const resp = await apiFetch(`/api/update_bulk_sms_enable_state/${user.user_id}/${statusStr}`, { method: "PUT" });
+            const data = await resp.json();
+            if (resp.ok && data.status === "success") {
+              showOperationStatus("Bulk SMS status updated", "success");
+            } else {
+              bulkSmsToggle.checked = previousStatus;
+              showOperationStatus(data.status || "Failed to update bulk sms status", "error");
+            }
+          } catch (err) {
+            bulkSmsToggle.checked = previousStatus;
+            showOperationStatus("Server error", "error");
+          } finally {
+            bulkSmsToggle.disabled = false;
+          }
+        });
+      }
+
+      bulkSmsCell.appendChild(bulkSmsToggle);
+      row.appendChild(bulkSmsCell);
 
       // 🔥 OPERATIONS CELL (Admin Only)
       const isAdmin = localStorage.getItem("is_admin") === "true";
@@ -400,6 +448,7 @@ function initUsersPage() {
         dropdown.className = "action-dropdown hidden";
         dropdown.innerHTML = `
           <li class="action-item add-sender">Add Sender Name</li>
+          <li class="action-item update-sms-limit">Update Sms Limit</li>
         `;
 
         actionBtn.addEventListener("click", (e) => {
@@ -410,6 +459,10 @@ function initUsersPage() {
 
         dropdown.querySelector(".add-sender").addEventListener("click", () => {
           openSenderModal(user.user_id);
+        });
+
+        dropdown.querySelector(".update-sms-limit").addEventListener("click", () => {
+          openUpdateSmsLimitModal(user.user_id, user.sms_limit);
         });
 
         wrapper.appendChild(actionBtn);
@@ -533,144 +586,6 @@ function initUsersPage() {
   });
 
   // =========================
-  // VIEW SENDERS MODAL LOGIC
-  // =========================
-  async function openViewSendersModal(userId) {
-    const modal = document.getElementById("view-senders-modal");
-    const errorEl = document.getElementById("view-senders-error");
-    const tableBody = document.getElementById("view-senders-table-body");
-
-    if (errorEl) errorEl.textContent = "Loading...";
-    if (tableBody) tableBody.innerHTML = "";
-    if (modal) modal.style.display = "flex";
-
-    try {
-      const resp = await apiFetch(`/api/all_sender_identifiers/${userId}`);
-      const data = await resp.json();
-
-      if (resp.ok && data.status === "success") {
-        if (errorEl) errorEl.textContent = "";
-        const identifiers = data.senderIdentifiers || [];
-
-        if (identifiers.length === 0) {
-          tableBody.innerHTML = "<tr><td class='table-muted' colspan='2'>No sender names found.</td></tr>";
-        } else {
-          identifiers.forEach(ident => {
-            const tr = document.createElement("tr");
-            const td = document.createElement("td");
-            td.textContent = ident.identifier_name;
-
-            const actionTd = document.createElement("td");
-            actionTd.style.textAlign = "center";
-            const deleteBtn = document.createElement("button");
-            deleteBtn.title = "Delete Sender Name";
-            deleteBtn.style.backgroundColor = "#243340";
-            deleteBtn.style.border = "none";
-            deleteBtn.style.borderRadius = "4px";
-            deleteBtn.style.cursor = "pointer";
-            deleteBtn.style.width = "30px";
-            deleteBtn.style.height = "30px";
-            deleteBtn.style.display = "flex";
-            deleteBtn.style.alignItems = "center";
-            deleteBtn.style.justifyContent = "center";
-            deleteBtn.style.margin = "0 auto";
-
-            deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
-
-            deleteBtn.addEventListener("click", () => {
-
-              selectedSenderNameForDeletion = ident.identifier_name;
-              selectedUserIdForSenderDeletion = userId;
-              openDeleteSenderConfirmModal();
-            });
-            actionTd.appendChild(deleteBtn);
-
-            tr.appendChild(td);
-            tr.appendChild(actionTd);
-            tableBody.appendChild(tr);
-          });
-        }
-      } else {
-        if (errorEl) errorEl.textContent = data.status || "Failed to load sender names.";
-        tableBody.innerHTML = "<tr><td class='table-muted' colspan='2'>Error loading data.</td></tr>";
-      }
-    } catch (err) {
-      if (errorEl) errorEl.textContent = "Server error while fetching sender names.";
-      tableBody.innerHTML = "<tr><td class='table-muted' colspan='2'>Error loading data.</td></tr>";
-    }
-  }
-
-  function closeViewSendersModal() {
-    const modal = document.getElementById("view-senders-modal");
-    if (modal) modal.style.display = "none";
-    const tableBody = document.getElementById("view-senders-table-body");
-    if (tableBody) tableBody.innerHTML = "";
-    const errorEl = document.getElementById("view-senders-error");
-    if (errorEl) errorEl.textContent = "";
-  }
-
-  const viewSendersModalCloseElements = [
-    document.getElementById("close-view-senders-btn"),
-    document.getElementById("cancel-view-senders-btn"),
-    document.getElementById("view-senders-modal-backdrop")
-  ];
-  viewSendersModalCloseElements.forEach(el => {
-    if (el) el.addEventListener("click", closeViewSendersModal);
-  });
-
-  // =========================
-  // DELETE SENDER MODAL
-  // =========================
-  let selectedSenderNameForDeletion = null;
-  let selectedUserIdForSenderDeletion = null;
-
-  function openDeleteSenderConfirmModal() {
-    const modal = document.getElementById("delete-sender-confirm-modal");
-    if (modal) modal.style.display = "flex";
-    const errorEl = document.getElementById("delete-sender-error");
-    if (errorEl) errorEl.textContent = "";
-  }
-
-  function closeDeleteSenderConfirmModal() {
-    const modal = document.getElementById("delete-sender-confirm-modal");
-    if (modal) modal.style.display = "none";
-    const errorEl = document.getElementById("delete-sender-error");
-    if (errorEl) errorEl.textContent = "";
-  }
-
-  const deleteSenderCloseEls = [
-    document.getElementById("close-delete-sender-btn"),
-    document.getElementById("cancel-delete-sender-btn"),
-    document.getElementById("delete-sender-backdrop")
-  ];
-  deleteSenderCloseEls.forEach(el => {
-    if (el) el.addEventListener("click", closeDeleteSenderConfirmModal);
-  });
-
-  const confirmDeleteSenderBtn = document.getElementById("confirm-delete-sender-btn");
-  if (confirmDeleteSenderBtn) {
-    confirmDeleteSenderBtn.addEventListener("click", async () => {
-      const errorEl = document.getElementById("delete-sender-error");
-      if (errorEl) errorEl.textContent = "Deleting...";
-
-      try {
-        const delResp = await apiFetch(`/api/delete_sender_id/${encodeURIComponent(selectedSenderNameForDeletion)}`, {
-          method: "DELETE"
-        });
-        const delData = await delResp.json();
-        if (delResp.ok && delData.status === "success") {
-          closeDeleteSenderConfirmModal();
-          openViewSendersModal(selectedUserIdForSenderDeletion);
-        } else {
-          if (errorEl) errorEl.textContent = delData.status || "Failed to delete sender name.";
-        }
-      } catch (e) {
-        if (errorEl) errorEl.textContent = "Server error while deleting sender name.";
-      }
-    });
-  }
-
-  // =========================
   // SENDER MODAL LOGIC
   // =========================
   let selectedUserIdForAction = null;
@@ -731,6 +646,73 @@ function initUsersPage() {
   document.addEventListener("click", () => {
     document.querySelectorAll(".action-dropdown").forEach(d => d.classList.add("hidden"));
   });
+
+  // =========================
+  // UPDATE SMS LIMIT MODAL LOGIC
+  // =========================
+  let selectedUserIdForSmsLimit = null;
+
+  function openUpdateSmsLimitModal(userId, currentLimit) {
+    selectedUserIdForSmsLimit = userId;
+    const modal = document.getElementById("sms-limit-modal");
+    if (modal) modal.style.display = "flex";
+    const input = document.getElementById("sms-limit-input");
+    if (input && currentLimit !== undefined && currentLimit !== null) {
+      input.value = currentLimit;
+    } else if (input) {
+      input.value = "";
+    }
+  }
+
+  function closeUpdateSmsLimitModal() {
+    const modal = document.getElementById("sms-limit-modal");
+    if (modal) modal.style.display = "none";
+    const form = document.getElementById("sms-limit-form");
+    if (form) form.reset();
+    const errorEl = document.getElementById("sms-limit-error");
+    if (errorEl) errorEl.textContent = "";
+  }
+
+  const smsLimitModalCloseElements = [
+    document.getElementById("close-sms-limit-btn"),
+    document.getElementById("cancel-sms-limit-btn"),
+    document.getElementById("sms-limit-backdrop")
+  ];
+  smsLimitModalCloseElements.forEach(el => {
+    if (el) el.addEventListener("click", closeUpdateSmsLimitModal);
+  });
+
+  const smsLimitForm = document.getElementById("sms-limit-form");
+  if (smsLimitForm) {
+    smsLimitForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const limitVal = parseInt(document.getElementById("sms-limit-input").value, 10);
+      const errorEl = document.getElementById("sms-limit-error");
+      if (errorEl) errorEl.textContent = "";
+
+      if (isNaN(limitVal) || limitVal < 1 || limitVal > 5000) {
+        if (errorEl) errorEl.textContent = "Please enter a valid limit between 1 and 5000.";
+        return;
+      }
+
+      try {
+        const response = await apiFetch(`/api/update_sms_limit/${selectedUserIdForSmsLimit}/${limitVal}`, {
+          method: "PUT"
+        });
+        const data = await response.json();
+
+        if (response.ok && data.status === "success") {
+          closeUpdateSmsLimitModal();
+          loadUsers();
+          showOperationStatus("SMS Limit updated successfully", "success");
+        } else {
+          if (errorEl) errorEl.textContent = data.status || "Failed to update SMS limit";
+        }
+      } catch (err) {
+        if (errorEl) errorEl.textContent = "Server error while updating limit";
+      }
+    });
+  }
 
   // =========================
   // DELETE USER LOGIC
@@ -1368,11 +1350,93 @@ async function loadUsersByUserId(tableBody, userId) {
     users.forEach((user) => {
       const row = document.createElement("tr");
 
-      row.appendChild(createCell(user.user_name || "-"));
+      const userCell = document.createElement("td");
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = user.user_name || "-";
+      nameSpan.className = "clickable-username";
+      nameSpan.addEventListener("click", () => {
+        openViewSendersModal(user.user_id);
+      });
+      userCell.appendChild(nameSpan);
+      row.appendChild(userCell);
+
       row.appendChild(createCell(user.email || "-"));
       row.appendChild(createCell(user.sms_limit ?? "-"));
       row.appendChild(createCell(user.today_sms_count ?? "-"));
       row.appendChild(createCell(user.port ?? "-"));
+
+      // 🔥 TOGGLE CELL
+      const statusCell = document.createElement("td");
+
+      const toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.checked = Boolean(user.is_active);
+      toggle.className = "toggle-switch";
+
+      const isAdminSessionForStatus = localStorage.getItem("is_admin") === "true";
+      if (!isAdminSessionForStatus) {
+        toggle.disabled = true;
+      } else {
+        toggle.addEventListener("change", (e) => {
+          e.preventDefault();
+
+          selectedUserId = user.user_id;
+          selectedStatus = toggle.checked;
+
+          // revert until confirmed
+          toggle.checked = !toggle.checked;
+
+          const modal = document.getElementById("status-modal");
+          const title = document.getElementById("status-modal-title");
+          if(title) title.textContent = selectedStatus ? "Activate User" : "Deactivate User";
+          if(modal) modal.style.display = "flex";
+        });
+      }
+
+      statusCell.appendChild(toggle);
+      row.appendChild(statusCell);
+
+      // 🔥 BULK SMS TOGGLE CELL
+      const bulkSmsCell = document.createElement("td");
+
+      const bulkSmsToggle = document.createElement("input");
+      bulkSmsToggle.type = "checkbox";
+      bulkSmsToggle.checked = Boolean(user.is_bulk_upload_enabled);
+      bulkSmsToggle.className = "toggle-switch";
+
+      const isAdminSession = localStorage.getItem("is_admin") === "true";
+      if (!isAdminSession) {
+        bulkSmsToggle.disabled = true;
+      } else {
+        bulkSmsToggle.addEventListener("change", async (e) => {
+          e.preventDefault();
+
+          const newStatus = bulkSmsToggle.checked;
+          const previousStatus = !newStatus;
+          bulkSmsToggle.disabled = true;
+
+          const statusStr = newStatus ? "True" : "False";
+
+          try {
+            const resp = await apiFetch(`/api/update_bulk_sms_enable_state/${user.user_id}/${statusStr}`, { method: "PUT" });
+            const data = await resp.json();
+            if (resp.ok && data.status === "success") {
+              showOperationStatus("Bulk SMS status updated", "success");
+            } else {
+              bulkSmsToggle.checked = previousStatus;
+              showOperationStatus(data.status || "Failed to update bulk sms status", "error");
+            }
+          } catch (err) {
+            bulkSmsToggle.checked = previousStatus;
+            showOperationStatus("Server error", "error");
+          } finally {
+            bulkSmsToggle.disabled = false;
+          }
+        });
+      }
+
+      bulkSmsCell.appendChild(bulkSmsToggle);
+      row.appendChild(bulkSmsCell);
 
       tableBody.appendChild(row);
     });
@@ -1383,4 +1447,199 @@ async function loadUsersByUserId(tableBody, userId) {
     td.textContent = text;
     return td;
   }
+
+  let selectedUserId = null;
+  let selectedStatus = null;
+
+  const statusForm = document.getElementById("status-form");
+  if (statusForm) {
+    statusForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const reason = document.getElementById("status-reason").value.trim();
+      const errorEl = document.getElementById("status-error");
+
+      if (!reason) {
+        errorEl.textContent = "Reason is required";
+        return;
+      }
+
+      try {
+        const response = await apiFetch("/api/active_deactive_user", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            userId: selectedUserId,
+            status: selectedStatus,
+            reason: reason
+          })
+        });
+        const data = await response.json();
+        
+        if (response.ok && data.status === "success") {
+            const modal = document.getElementById("status-modal");
+            if (modal) modal.style.display = "none";
+            document.getElementById("status-form").reset();
+            loadUser(); // refresh
+        } else {
+            errorEl.textContent = data.status || "Failed to update status";
+        }
+      } catch (err) {
+        errorEl.textContent = "Failed to update status";
+      }
+    });
+
+    const cancelBtn = document.getElementById("cancel-status");
+    if(cancelBtn) {
+        cancelBtn.addEventListener("click", () => {
+            const modal = document.getElementById("status-modal");
+            if (modal) modal.style.display = "none";
+            document.getElementById("status-form").reset();
+            const errorEl = document.getElementById("status-error");
+            if (errorEl) errorEl.textContent = "";
+        });
+    }
+  }
+
 }
+
+  // =========================
+  // VIEW SENDERS MODAL LOGIC
+  // =========================
+  async function openViewSendersModal(userId) {
+    const modal = document.getElementById("view-senders-modal");
+    const errorEl = document.getElementById("view-senders-error");
+    const tableBody = document.getElementById("view-senders-table-body");
+
+    if (errorEl) errorEl.textContent = "Loading...";
+    if (tableBody) tableBody.innerHTML = "";
+    if (modal) modal.style.display = "flex";
+
+    try {
+      const resp = await apiFetch(`/api/all_sender_identifiers/${userId}`);
+      const data = await resp.json();
+
+      if (resp.ok && data.status === "success") {
+        if (errorEl) errorEl.textContent = "";
+        const identifiers = data.senderIdentifiers || [];
+
+        if (identifiers.length === 0) {
+          tableBody.innerHTML = "<tr><td class='table-muted' colspan='2'>No sender names found.</td></tr>";
+        } else {
+          identifiers.forEach(ident => {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.textContent = ident.identifier_name;
+
+            const actionTd = document.createElement("td");
+            actionTd.style.textAlign = "center";
+            const deleteBtn = document.createElement("button");
+            deleteBtn.title = "Delete Sender Name";
+            deleteBtn.style.backgroundColor = "#243340";
+            deleteBtn.style.border = "none";
+            deleteBtn.style.borderRadius = "4px";
+            deleteBtn.style.cursor = "pointer";
+            deleteBtn.style.width = "30px";
+            deleteBtn.style.height = "30px";
+            deleteBtn.style.display = "flex";
+            deleteBtn.style.alignItems = "center";
+            deleteBtn.style.justifyContent = "center";
+            deleteBtn.style.margin = "0 auto";
+
+            deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+
+            deleteBtn.addEventListener("click", () => {
+
+              selectedSenderNameForDeletion = ident.identifier_name;
+              selectedUserIdForSenderDeletion = userId;
+              openDeleteSenderConfirmModal();
+            });
+            actionTd.appendChild(deleteBtn);
+
+            tr.appendChild(td);
+            tr.appendChild(actionTd);
+            tableBody.appendChild(tr);
+          });
+        }
+      } else {
+        if (errorEl) errorEl.textContent = data.status || "Failed to load sender names.";
+        tableBody.innerHTML = "<tr><td class='table-muted' colspan='2'>Error loading data.</td></tr>";
+      }
+    } catch (err) {
+      if (errorEl) errorEl.textContent = "Server error while fetching sender names.";
+      tableBody.innerHTML = "<tr><td class='table-muted' colspan='2'>Error loading data.</td></tr>";
+    }
+  }
+
+  function closeViewSendersModal() {
+    const modal = document.getElementById("view-senders-modal");
+    if (modal) modal.style.display = "none";
+    const tableBody = document.getElementById("view-senders-table-body");
+    if (tableBody) tableBody.innerHTML = "";
+    const errorEl = document.getElementById("view-senders-error");
+    if (errorEl) errorEl.textContent = "";
+  }
+
+  const viewSendersModalCloseElements = [
+    document.getElementById("close-view-senders-btn"),
+    document.getElementById("cancel-view-senders-btn"),
+    document.getElementById("view-senders-modal-backdrop")
+  ];
+  viewSendersModalCloseElements.forEach(el => {
+    if (el) el.addEventListener("click", closeViewSendersModal);
+  });
+
+  // =========================
+  // DELETE SENDER MODAL
+  // =========================
+  let selectedSenderNameForDeletion = null;
+  let selectedUserIdForSenderDeletion = null;
+
+  function openDeleteSenderConfirmModal() {
+    const modal = document.getElementById("delete-sender-confirm-modal");
+    if (modal) modal.style.display = "flex";
+    const errorEl = document.getElementById("delete-sender-error");
+    if (errorEl) errorEl.textContent = "";
+  }
+
+  function closeDeleteSenderConfirmModal() {
+    const modal = document.getElementById("delete-sender-confirm-modal");
+    if (modal) modal.style.display = "none";
+    const errorEl = document.getElementById("delete-sender-error");
+    if (errorEl) errorEl.textContent = "";
+  }
+
+  const deleteSenderCloseEls = [
+    document.getElementById("close-delete-sender-btn"),
+    document.getElementById("cancel-delete-sender-btn"),
+    document.getElementById("delete-sender-backdrop")
+  ];
+  deleteSenderCloseEls.forEach(el => {
+    if (el) el.addEventListener("click", closeDeleteSenderConfirmModal);
+  });
+
+  const confirmDeleteSenderBtn = document.getElementById("confirm-delete-sender-btn");
+  if (confirmDeleteSenderBtn) {
+    confirmDeleteSenderBtn.addEventListener("click", async () => {
+      const errorEl = document.getElementById("delete-sender-error");
+      if (errorEl) errorEl.textContent = "Deleting...";
+
+      try {
+        const delResp = await apiFetch(`/api/delete_sender_id/${encodeURIComponent(selectedSenderNameForDeletion)}`, {
+          method: "DELETE"
+        });
+        const delData = await delResp.json();
+        if (delResp.ok && delData.status === "success") {
+          closeDeleteSenderConfirmModal();
+          openViewSendersModal(selectedUserIdForSenderDeletion);
+        } else {
+          if (errorEl) errorEl.textContent = delData.status || "Failed to delete sender name.";
+        }
+      } catch (e) {
+        if (errorEl) errorEl.textContent = "Server error while deleting sender name.";
+      }
+    });
+  }
+
